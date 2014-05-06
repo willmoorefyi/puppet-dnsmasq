@@ -1,0 +1,8 @@
+resolv-file=/opt/boxen/config/dnsmasq/dnsmasq-nameservers.conf
+keep-in-foreground
+clear-on-reload
+all-servers
+
+address=/local/127.0.0.1
+address=/<%= scope.lookupvar dnsmasq::config::webs_id =>/127.0.0.1
+listen-address=127.0.0.1

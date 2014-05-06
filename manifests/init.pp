@@ -14,7 +14,7 @@ class dnsmasq {
   file { "${dnsmasq::config::configdir}/dnsmasq.conf":
     notify  => Service['dev.dnsmasq'],
     require => File[$dnsmasq::config::configdir],
-    source  => 'puppet:///modules/dnsmasq/dnsmasq.conf'
+    content => template("dnsmasq/dnsmasq.conf.erb")
   }
 
   file { '/Library/LaunchDaemons/dev.dnsmasq.plist':
@@ -36,6 +36,20 @@ class dnsmasq {
     owner   => 'root',
     require => File['/etc/resolver'],
     notify  => Service['dev.dnsmasq'],
+  }
+
+  file { "${dnsmasq::config::configdir}/nameservers_public.conf":
+    content => template("dnsmasq/nameservers_public.conf.erb"),
+    group   => 'wheel',
+    owner => "root",
+    mode => "0766",
+  }
+
+  file { "${dnsmasq::config::datadir}/update_nameservers.sh":
+    content => template("dnsmasq/update_nameservers.sh.erb"),
+    group   => 'wheel',
+    owner => "root",
+    mode => "0744",
   }
 
   homebrew::formula { 'dnsmasq':

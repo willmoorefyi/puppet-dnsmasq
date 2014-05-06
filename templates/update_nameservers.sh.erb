@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# locking variables
+LOCKDIR="/tmp/nameservers.lock"
+PIDFILE="${LOCKDIR}/nameservers.pid"
+
+# Temporary file for discovered nameservers
+TMP_NAMESERVERS_FILE="${LOCKDIR}/nameservers.conf"
+# List of public nameservers to add to the list
+PUB_NAMESERVERS_FILE="/opt/boxen/config/dnsmasq/nameservers_public.conf"
+# The nameserver list read in by dnsmasq
+SYS_NAMESERVERS_FILE="/opt/boxen/config/dnsmasq/dnsmasq-nameservers.conf"
+
+# Setup a lock in case we trigger this script multiple times due to multiple network changes
+if mkdir "${LOCKDIR}"; then
+    echo "$$" >"${PIDFILE}";
+    echo "# DHCP supplied nameserves:" > "${TMP_NAMESERVERS_FILE}";
+
+    # 1) For each interface listed by the networksetup command...
+    while IFS=" " read -r -a interfaces;
+    do
+        ((int_count = ${#interfaces[@]} - 1));
+        for ((i = 0; i <= int_count; i++));
+        do
+        # 2) Get any nameservers assigned via DHCP
+        /usr/sbin/ipconfig getpacket ${interfaces[i]} | awk '/domain_name_server/{split($0,nameservers,"\,")} END{for (x in nameservers) if(match(nameservers[x],/([0-9]{1,3}\.?){4}/)) { print "nameserver " substr(nameservers[x], RSTART, RLENGTH) >> "'${TMP_NAMESERVERS_FILE}'"}; }'
+        done
+    done <<< `networksetup -listallhardwareports | grep Device | sed 's/Device: //g'`
+
+# 4) If a file of public nameservers exists, add these to our configuration.
+if [ -e ${PUB_NAMESERVERS_FILE} ]; then
+    echo "# Nameservers from personal config file" >> ${TMP_NAMESERVERS_FILE};
+    cat ${PUB_NAMESERVERS_FILE} >> ${TMP_NAMESERVERS_FILE};
+fi
+cp ${TMP_NAMESERVERS_FILE} ${SYS_NAMESERVERS_FILE};
+
+launchctl stop dev.dnsmasq
+if test $? -eq 0; then
+        launchctl start dev.dnsmasq
+else
+        logger "Could not restart DNSMasq, stop command executed abnormally.  Restart manaully using launchctl directly"
+fi
+
+rm -rf "${LOCKDIR}";
+else
+# Display an informational message if we failed to establish a lock.
+logger "PROXY CONFIGURATION FAILED!"
+exit 1;
+fi
+
+logger "Proxy configuration updated successfully"
+exit 0

@@ -12,6 +12,7 @@ class dnsmasq::config {
   $executable = "${boxen::config::homebrewdir}/sbin/dnsmasq"
   $logdir     = "${boxen::config::logdir}/dnsmasq"
   $logfile    = "${logdir}/console.log"
+  $webs_id    = "dev"
 
   anchor { [
     $configdir,
@@ -20,5 +21,6 @@ class dnsmasq::config {
     $executable,
     $logdir,
     $logfile,
+    $webs_id,
   ]: }
 }
